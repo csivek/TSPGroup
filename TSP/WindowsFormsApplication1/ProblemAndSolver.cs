@@ -370,6 +370,7 @@ namespace TSP
             return results;
         }
 
+        //Represents a Branch and Bound SubProblem
         public class bBSubProblem
         {
             public double lowestBound;
@@ -387,7 +388,7 @@ namespace TSP
         bBSubProblem[] heapProblems;
         int heapSize;
         int maxHeapSize;
-        int totalStates;
+        int totalProblemsMade;
 
         /// <summary>
         /// performs a Branch and Bound search of the state space of partial tours
@@ -399,6 +400,7 @@ namespace TSP
             Stopwatch timer = new Stopwatch();
             timer.Start();
 
+            //Initialization
             string[] results = new string[3];
             heapProblems = new bBSubProblem[500];
             heapSize = 1;
@@ -410,8 +412,9 @@ namespace TSP
             results = defaultSolveProblem(); //set bssf to cheap solution
             double bssfCost = costOfBssf();
             int rejectedBranches = 0;
-            totalStates = 1;
+            totalProblemsMade = 1;
 
+            //While the heap is not empty and time hasn't run out
             while (heapProblems[1] != null && timer.ElapsedMilliseconds < this.time_limit)
             {
                 bBSubProblem toExplore = DeleteMin();
@@ -429,7 +432,7 @@ namespace TSP
                             newProb.path = new List<int>(toExplore.path);
                             newProb.lowestBound += toExplore.travelCosts[prev, i];
 
-                            if (newProb.lowestBound < costOfBssf())
+                            if (newProb.lowestBound < costOfBssf()) 
                             {
                                 //If the path is back to the beginning city, we found a solution
                                 if (i == 0 && newProb.path.Count == Cities.Length)
@@ -442,7 +445,7 @@ namespace TSP
                                     }
                                     bssf = new TSPSolution(cPath);
                                 }
-                                else if (i != 0)
+                                else if (i != 0) //If you are worthy to explore then let's explore
                                 {
                                     newProb.travelCosts = (double[,])toExplore.travelCosts.Clone();
                                     newProb.path.Add(i);
@@ -471,9 +474,10 @@ namespace TSP
             return results;
         }
 
+        //Adds to the Heap of Sub-Problems
         private void AddToHeap(bBSubProblem newProb)
         {
-            totalStates++;
+            totalProblemsMade++;
             if (heapSize == heapProblems.Length - 1) doubleSize();
 
             int pos = ++heapSize;
@@ -484,6 +488,7 @@ namespace TSP
 
         }
 
+        //Creates more space for Sub-Problems if it needs to
         private void doubleSize()
         {
             bBSubProblem[] placeholder = new bBSubProblem[heapProblems.Length * 2];
@@ -491,6 +496,7 @@ namespace TSP
             heapProblems = placeholder;
         }
 
+        //Returns the top of the Heap and Adjusts
         private bBSubProblem DeleteMin()
         {
             bBSubProblem prob = heapProblems[1];
@@ -502,6 +508,7 @@ namespace TSP
             
         }
 
+        //Move problem up the heap if it is lower
         private void DecreaseKey(int loc)
         {
             bBSubProblem tempProb;
@@ -525,6 +532,7 @@ namespace TSP
             }
         }
 
+        //move problem down the heap if it is higher
         private void InceaseKey(int loc)
         {
             int leftChildLoc = loc * 2;
@@ -562,6 +570,7 @@ namespace TSP
             }
         }
 
+        //Returns the Value of the Sub-Problem
         private double ComputeValue(int loc)
         {
             if (loc >= heapProblems.Length || heapProblems[loc] == null)
@@ -569,6 +578,7 @@ namespace TSP
             return heapProblems[loc].lowestBound - 100 * Cities.Length * heapProblems[loc].path.Count;
         }
 
+        //Initialization for the first Problem
         private void InitializeRootProblem()
         {
             heapProblems[1] = new bBSubProblem();
@@ -590,6 +600,8 @@ namespace TSP
             UpdateTravelCosts(heapProblems[1], true);
         }
 
+        //Given an edge (row and column) this code will remove all edges
+        //in the row and column and it's symmetric edge (edges[col, row]) 
         private void RemoveTravelCosts(bBSubProblem prob, int row, int col)
         {
             for (int i = 0; i < Cities.Length; i++)
@@ -600,6 +612,8 @@ namespace TSP
             prob.travelCosts[col, row] = double.PositiveInfinity;
         }
 
+        //Simplifies the travelCost matrix and adds to the lower bound
+        // of the Sub-Problem. One does one pass in the direction you tell it
         private void UpdateTravelCosts(bBSubProblem prob, bool vert)
         {
             
