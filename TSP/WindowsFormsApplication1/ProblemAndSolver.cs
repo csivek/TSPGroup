@@ -409,7 +409,7 @@ namespace TSP
 
             InitializeRootProblem();
 
-            results = defaultSolveProblem(); //set bssf to cheap solution
+            results = greedySolveProblem(); //set bssf to cheap solution
             double bssfCost = costOfBssf();
             int rejectedBranches = 0;
             totalProblemsMade = 1;
@@ -645,19 +645,110 @@ namespace TSP
         // These additional solver methods will be implemented as part of the group project.
         ////////////////////////////////////////////////////////////////////////////////////////////
 
+        private class Edge : IComparable
+        {
+            public int from;
+            public int to;
+            public double cost;
+
+            public Edge(int fromCity, int toCity, double travelCost)
+            {
+                from = fromCity;
+                to = toCity;
+                cost = travelCost;
+            }
+
+            public int CompareTo(object obj)
+            {
+                
+                return cost.CompareTo(((Edge) obj).cost);
+            }
+        }
+
         /// <summary>
         /// finds the greedy tour starting from each city and keeps the best (valid) one
         /// </summary>
         /// <returns>results array for GUI that contains three ints: cost of solution, time spent to find solution, number of solutions found during search (not counting initial BSSF estimate)</returns>
         public string[] greedySolveProblem()
         {
+            Stopwatch timer = new Stopwatch();
+            timer.Start();
+
             string[] results = new string[3];
 
-            // TODO: Add your implementation for a greedy solver here.
+            Edge[] edges = new Edge[Cities.Length*(Cities.Length - 1)];
+            int iter = 0;
 
-            results[COST] = "not implemented";    // load results into array here, replacing these dummy values
-            results[TIME] = "-1";
-            results[COUNT] = "-1";
+            for (int i = 0; i < Cities.Length; i++)
+            {
+                for (int j = 0; j < Cities.Length; j++)
+                {
+                    if (i != j)
+                    {
+                        edges[iter] = new Edge(i, j, Cities[i].costToGetTo(Cities[j]));
+                        iter++;
+                    }
+                }
+            }
+
+            Array.Sort(edges);
+            int[] prevCity = new int[Cities.Length];
+            int[] nextCity = new int[Cities.Length];
+            int numPicks = 0;
+            bool loop = false;
+
+            for (int i = 0; i < Cities.Length; i++)
+            {
+                prevCity[i] = -1;
+                nextCity[i] = -1;
+            }
+
+            for (int i = 0; i < edges.Length; i++)
+            {
+                // if the respective cites have not been filled yet
+                if (prevCity[edges[i].to] == -1 && nextCity[edges[i].from] == -1)
+                {
+                    loop = false;
+                    iter = edges[i].to;
+                    while (nextCity[iter] != -1)
+                    {
+                        if (nextCity[iter] == edges[i].from)
+                        {
+                            loop = true;
+                            break;
+                        }
+                        iter = nextCity[iter];
+                    }
+
+                    if (!loop)
+                    {
+                        numPicks++;
+                        prevCity[edges[i].to] = edges[i].from;
+                        nextCity[edges[i].from] = edges[i].to;
+                    }
+                    else if (numPicks == Cities.Length - 1)
+                    {
+                        prevCity[edges[i].to] = edges[i].from;
+                        nextCity[edges[i].from] = edges[i].to;
+                        break;
+                    }
+                }
+            }
+
+            Route.Clear();
+            iter = 0;
+            Route.Add(Cities[0]);
+            while (nextCity[iter] != 0)
+            {
+                iter = nextCity[iter];
+                Route.Add(Cities[iter]);
+            }
+
+            bssf = new TSPSolution(Route);
+
+            results[COST] = costOfBssf().ToString();
+            results[TIME] = timer.Elapsed.ToString();
+            results[COUNT] = "1";
 
             return results;
         }
