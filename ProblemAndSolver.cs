@@ -24,6 +24,7 @@ namespace TSP
             public ArrayList
                 Route;
 
+
             /// <summary>
             /// constructor
             /// </summary>
@@ -69,6 +70,8 @@ namespace TSP
         // and change the "Text" value.)
         private const int DEFAULT_SIZE = 25;
 
+
+        public bool drawAnts = false;
         /// <summary>
         /// Default time limit (unused -- to set defaults, change the values in the GUI form)
         /// </summary>
@@ -303,6 +306,35 @@ namespace TSP
                 // draw the last line. 
                 g.DrawLine(routePenStyle, ps[0], ps[ps.Length - 1]);
             }
+
+
+            if (drawAnts)
+            {
+                City fc;
+                City tc;
+                Pen antPen = new Pen(Color.Black, 1);
+                for (int j = 0; j < Cities.Length; j++) //evaporate pheremones between nodes
+                {
+                    fc = Cities[j];
+                    for (int i = 0; i < Cities.Length; i++) //evaporate pheremones between nodes
+                    {
+                        tc = Cities[i];
+                        if (i != j && fc.costToGetTo(tc) < Double.PositiveInfinity)
+                        {
+                            int redAmnt = (int)(nodes[j].getProbability(i) * 255);
+                            redAmnt = (redAmnt < 0) ? 0 : (redAmnt > 255) ? 255 : redAmnt;
+                            if (redAmnt > 50)
+                            {
+                                antPen.Color = Color.FromArgb(255 - redAmnt, redAmnt, 0); //(int)(nodes[j].getProbability(i) * 255), 0, 0);
+                                g.DrawLine(antPen, (int)(fc.X * width) + CITY_ICON_SIZE / 2, (int)(fc.Y * height) + CITY_ICON_SIZE / 2,
+                                    (int)(tc.X * width) + CITY_ICON_SIZE / 2, (int)(tc.Y * height) + CITY_ICON_SIZE / 2);
+                            }
+                        }
+                    }
+                }
+            }
+
+
 
             // Draw city dots
             foreach (City c in Cities)
@@ -757,12 +789,14 @@ namespace TSP
         private class ACONode
         {
             // tuning parameters
-            const double evaporation_factor = .9; //pheremone evaporation/forget factor
-            const double alpha = 1;    //alpha weight for pheremone
-            const double beta = 1;    //beta weight for distance
+            const double evaporation_factor = .1; //pheremone evaporation/forget factor
+            const double alpha = .01;    //alpha weight for pheremone
+            const double beta = 5;    //beta weight for distance
 
             int city;
             int num_cities;
+            double[] probs;
+
 
             Double[] pher; //array of pheremons to each city
             Double[] dist; //array of distances to each city
@@ -773,18 +807,18 @@ namespace TSP
                 this.num_cities = num_cities;
                 pher = new Double[num_cities];
                 dist = new Double[num_cities];
+                probs = new double[num_cities];
                 for (int i = 0; i < num_cities; i++)
                 {
                     dist[i] = Cities[city].costToGetTo(Cities[i]);
-                    pher[i] = .01;
+                    pher[i] = .5;
                 }
             }
 
             public int NextCity(List<int> visited, int starting_node)
             {
                 double sum = 0;
-                double[] probs = new double[num_cities];
-
+                
                 int num_visited = visited.Count;
 
 
@@ -799,17 +833,21 @@ namespace TSP
                 {
                     if (!visited.Contains(i) && city != i && i != starting_node)
                     {
-                        if (dist[i] != 0)
+                        if (dist[i] != 0 && dist[i] < double.PositiveInfinity)
                         {
                             probs[i] = Math.Pow(pher[i], alpha) * Math.Pow(1 / dist[i], beta);
 
                         }
                         else
                         {
-                            probs[i] = Math.Pow(pher[i], alpha) * Math.Pow(1 / .0001, beta);
+                            probs[i] = 0;
 
                         }
                         sum += probs[i];
+                    }
+                    else
+                    {
+                        probs[i] = 0;
                     }
                 }
 
@@ -836,6 +874,16 @@ namespace TSP
                         }
                     }
                 }
+                if (visited.Contains(choice))
+                {
+                    for (int i = 0; i < num_cities; i++)
+                    {
+                        if (!visited.Contains(i) && dist[i] < double.PositiveInfinity)
+                        {
+                            return i;
+                        }
+                    }
+                }
                 return choice;
             }
 
@@ -851,6 +899,12 @@ namespace TSP
                     pher[i] = (1 - evaporation_factor) * pher[i];
                 }
             }
+
+            public double getProbability(int i)
+            {
+                return probs[i];
+            }
+
         }
 
 
@@ -915,20 +969,24 @@ namespace TSP
             }
         }
 
+        private ACONode[] nodes;
 
 
-        public string[] fancySolveProblem()
+        public string[] fancySolveProblem(mainform form)
         {
+
+            drawAnts = true;
             string[] results = new string[3];
 
 
-            const int batch_size = 50; //tuning parameters
-            const bool random_city = false;
-            const double pherenome_constant = 10;
+            const int batch_size = 10; //tuning parameters
+            const bool random_city = true;
+            const double pherenome_constant = 5;
 
 
             ant[] ants = new ant[batch_size];
-            ACONode[] nodes = new ACONode[Cities.Length];
+            nodes = new ACONode[Cities.Length];
+
 
             for (int i = 0; i < batch_size; i++)
             {
@@ -1020,6 +1078,8 @@ namespace TSP
                     nodes[j].evaporatepheremones();
                 }
 
+                form.Refresh();
+
             } //repeat
 
 
@@ -1028,6 +1088,8 @@ namespace TSP
             results[COST] = best_cost.ToString();    // load results into array here, replacing these dummy values
             results[TIME] = timer.Elapsed.ToString(); ;
             results[COUNT] = updates.ToString();
+
+            drawAnts = false;
 
             return results;
         }
